@@ -166,6 +166,8 @@ TemplateTag.parse = function (scannerOrString) {
   // type , value, and (indicating a keyword argument)
   // keyword name.
   var scanArg = function (notKeyword) {
+    // xcxc turn if inside-out: first check if it's supposed
+    // to be the keyword, and if so don't even try to parse numbers, path, etc.
     var startPos = scanner.pos;
     var result;
     if ((result = parseNumber(scanner))) {
@@ -174,28 +176,41 @@ TemplateTag.parse = function (scannerOrString) {
       return ['STRING', result.value];
     } else if (/^[\.\[]/.test(scanner.peek())) {
       return ['PATH', scanPath()];
-    } else if ((result = parseIdentifierName(scanner))) {
-      var id = result;
-      if (id === 'null') {
-        return ['NULL', null];
-      } else if (id === 'true' || id === 'false') {
-        return ['BOOLEAN', id === 'true'];
-      } else {
-        if ((! notKeyword) &&
-            /^\s*=/.test(scanner.rest())) {
-          // it's a keyword argument!
-          run(/^\s*=\s*/);
-          // recurse to scan value, disallowing a second `=`.
-          var arg = scanArg(true);
-          arg.push(id); // add third element for key
-          return arg;
-        } else {
-          scanner.pos = startPos; // unconsume `id`
-          return ['PATH', scanPath()];
-        }
-      }
     } else {
-      expected('identifier, number, string, boolean, or null');
+      if (notKeyword) {
+        if (!(result = parseIdentifierName(scanner)))
+          expected('identifier, number, string, boolean, or null');
+      } else {
+        var match = /^[^\{\}\(\)\>#=\s]+/.exec(scanner.rest());
+        if (! match)
+          expected('non-empty string consisting of characters other than {}()>#');
+        scanner.pos += match[0].length;
+        result = match[0];
+      }
+
+      if (result) {
+        var id = result;
+        if (id === 'null') {
+          return ['NULL', null];
+        } else if (id === 'true' || id === 'false') {
+          return ['BOOLEAN', id === 'true'];
+        } else {
+          if ((! notKeyword) &&
+              /^\s*=/.test(scanner.rest())) {
+            // it's a keyword argument!
+            run(/^\s*=\s*/);
+            // recurse to scan value, disallowing a second `=`.
+            var arg = scanArg(true);
+            arg.push(id); // add third element for key
+            return arg;
+          } else {
+            scanner.pos = startPos; // unconsume `id`
+            return ['PATH', scanPath()];
+          }
+        }
+      } else {
+        expected('identifier, number, string, boolean, or null');
+      }
     }
   };
 
@@ -263,7 +278,7 @@ TemplateTag.parse = function (scannerOrString) {
       }
       tag.args.push(newArg);
 
-      if (run(/^(?=[\s}])/) !== '')
+      if (run(/^(?=[\s-}])/) !== '')
         expected('space');
     }
   }

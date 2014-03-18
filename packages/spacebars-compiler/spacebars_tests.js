@@ -119,6 +119,24 @@ Tinytest.add("spacebars - stache tags", function (test) {
       {type: 'INCLUSION', path: ['foo'],
        args: [['NUMBER', 1, 'x'],
               ['NUMBER', 2, 'y']]});
+  run('{{> foo with-dashes=1 another-one=2}}',
+      {type: 'INCLUSION', path: ['foo'],
+       args: [['NUMBER', 1, 'with-dashes'],
+              ['NUMBER', 2, 'another-one']]});
+  run('{{> foo 1337="numbers not allowed"}}',
+      "Expected");
+  run('{{> foo disallow-#=1}}',
+      "Expected");
+  run('{{> foo disallow->=1}}',
+      "Expected");
+  run('{{> foo disallow-{=1}}',
+      "Expected");
+  run('{{> foo disallow-(=1}}',
+      "Expected");
+  run('{{> foo disallow-}=1}}',
+      "Expected");
+  run('{{> foo disallow-)=1}}',
+      "Expected");
   run('{{> foo x=1 y=2 z}}',
       "Can't have a non-keyword argument");
 
